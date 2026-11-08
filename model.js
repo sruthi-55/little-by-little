@@ -20,6 +20,7 @@ export function replay(events) {
       h.goalHistory.push({effective: p.effective, goal: p.goal});
       h.goalHistory.sort((a,b) => a.effective.localeCompare(b.effective));
     }
+    if (p.type === 'icon' && habits[p.id]) habits[p.id].emoji = p.emoji;
     if (p.type === 'delete') delete habits[p.id];
     if (p.type === 'check') {
       results[`${p.id}:${p.day}`] = {done: p.done, goal: p.goal ?? (habits[p.id] ? goalAt(habits[p.id], p.day) : '')};
@@ -43,6 +44,7 @@ export function validPayload(p){
   const id=v=>typeof v==='string'&&/^[a-zA-Z0-9-]{1,80}$/.test(v);
   if(!p||typeof p!=='object')return false;
   if(p.type==='habit'){const h=p.habit;return !!h&&id(h.id)&&typeof h.name==='string'&&h.name.trim().length>0&&h.name.length<=60&&typeof h.goal==='string'&&h.goal.length<=80&&typeof h.emoji==='string'&&h.emoji.length<=16&&date(h.created);}
+  if(p.type==='icon')return id(p.id)&&typeof p.emoji==='string'&&p.emoji.trim().length>0&&p.emoji.length<=16;
   if(p.type==='delete')return id(p.id);
   if(p.type==='goal')return id(p.id)&&date(p.effective)&&typeof p.goal==='string'&&p.goal.trim().length>0&&p.goal.length<=80;
   if(p.type==='check')return id(p.id)&&date(p.day)&&typeof p.done==='boolean'&&(p.goal===undefined||(typeof p.goal==='string'&&p.goal.length<=80));

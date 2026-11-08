@@ -42,3 +42,10 @@ test('editing a goal survives reload while completed days keep their description
  assert.match(app.nodes.get('#habits').innerHTML,/20 pages/);assert.match(app.nodes.get('#detail-content').innerHTML,/10 pages/);
  const reload=boot(app.store);assert.equal(reload.run('habits[0].goal'),'20 pages');assert.equal(reload.run('habits[0].results[today()].goal'),'10 pages');assert.equal(reload.run('stats(habits[0]).current'),1);
 });
+test('changing an existing habit icon persists without changing progress',()=>{
+ const app=boot();app.run(`add({type:'habit',habit:{id:'read',name:'Read',goal:'10 pages',emoji:'📖',created:today()}});add({type:'check',id:'read',day:today(),done:true});selected='read';renderDetail();document.querySelector('#edit-icon').onclick();`);
+ assert.match(app.nodes.get('#edit-icon-options').innerHTML,/📚/);assert.match(app.nodes.get('#edit-icon-options').innerHTML,/☀️/);
+ app.run(`document.querySelector('#edit-icon-options').onclick({target:{closest(){return {textContent:'📚'}}}})`);
+ const reload=boot(app.store);assert.equal(reload.run('habits[0].emoji'),'📚');assert.equal(reload.run('stats(habits[0]).current'),1);assert.equal(reload.run('habits[0].results[today()].goal'),'10 pages');
+ assert.equal(model.validPayload({type:'icon',id:'read',emoji:'📚'}),true);assert.equal(model.validPayload({type:'icon',id:'read',emoji:''}),false);
+});
