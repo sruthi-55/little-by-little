@@ -36,3 +36,9 @@ test('a failed sync preserves queued changes for retry',async()=>{
  await app.run('new Promise(resolve => { const poll = () => syncing ? Promise.resolve().then(poll) : resolve(); poll(); })');
  assert.equal(app.run('state.pending.length'),1);assert.equal(JSON.parse(store.get('lbl-data-'+user.id)).pending.length,1);assert.equal(app.nodes.get('#sync-label').textContent,'Saved locally · retry sync');
 });
+test('editing a goal survives reload while completed days keep their description',()=>{
+ const app=boot();app.run(`add({type:'habit',habit:{id:'read',name:'Read',goal:'10 pages',emoji:'📖',created:today()}});add({type:'check',id:'read',day:today(),done:true});selected='read';renderDetail();`);
+ app.run(`document.querySelector('#goal-form').onsubmit({preventDefault(){},target:{elements:{goal:{value:'20 pages'}}}})`);
+ assert.match(app.nodes.get('#habits').innerHTML,/20 pages/);assert.match(app.nodes.get('#detail-content').innerHTML,/10 pages/);
+ const reload=boot(app.store);assert.equal(reload.run('habits[0].goal'),'20 pages');assert.equal(reload.run('habits[0].results[today()].goal'),'10 pages');assert.equal(reload.run('stats(habits[0]).current'),1);
+});

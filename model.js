@@ -4,14 +4,31 @@ export function dayKey(date = new Date()) {
 export function shiftDay(key, offset) {
   const [y,m,d]=key.split('-').map(Number); return dayKey(new Date(y,m-1,d+offset,12));
 }
-export function replay(events) {
-  const habits={}; const checks={};
-  for(const {payload:p} of events) {
-    if(p.type==='habit') habits[p.habit.id]=p.habit;
-    if(p.type==='delete') delete habits[p.id];
-    if(p.type==='check') checks[`${p.id}:${p.day}`]=p.done;
+export function goalAt(habit, day) {
+  let goal = habit.goalHistory?.[0]?.goal ?? habit.goal;
+  for (const revision of habit.goalHistory || []) {
+    if (revision.effective <= day) goal = revision.goal;
   }
-  return Object.values(habits).map(h=>({...h,days:Object.fromEntries(Object.entries(checks).filter(([k])=>k.startsWith(h.id+':')).map(([k,v])=>[k.slice(h.id.length+1),v]))}));
+  return goal;
+}
+export function replay(events) {
+  const habits = {}, results = {};
+  for (const {payload: p} of events) {
+    if (p.type === 'habit') habits[p.habit.id] = {...p.habit, goalHistory: [{effective: p.habit.created, goal: p.habit.goal}]};
+    if (p.type === 'goal' && habits[p.id]) {
+      const h = habits[p.id];
+      h.goalHistory.push({effective: p.effective, goal: p.goal});
+      h.goalHistory.sort((a,b) => a.effective.localeCompare(b.effective));
+    }
+    if (p.type === 'delete') delete habits[p.id];
+    if (p.type === 'check') {
+      results[`${p.id}:${p.day}`] = {done: p.done, goal: p.goal ?? (habits[p.id] ? goalAt(habits[p.id], p.day) : '')};
+    }
+  }
+  return Object.values(habits).map(h => {
+    const entries = Object.entries(results).filter(([k]) => k.startsWith(h.id + ':')).map(([k,v]) => [k.slice(h.id.length+1), v]);
+    return {...h, goal: goalAt(h, dayKey()), results: Object.fromEntries(entries), days: Object.fromEntries(entries.map(([k,v]) => [k,v.done]))};
+  });
 }
 export function stats(habit,today=dayKey()) {
   const days=Object.keys(habit.days).filter(k=>habit.days[k]&&k<=today).sort();
@@ -27,6 +44,7 @@ export function validPayload(p){
   if(!p||typeof p!=='object')return false;
   if(p.type==='habit'){const h=p.habit;return !!h&&id(h.id)&&typeof h.name==='string'&&h.name.trim().length>0&&h.name.length<=60&&typeof h.goal==='string'&&h.goal.length<=80&&typeof h.emoji==='string'&&h.emoji.length<=16&&date(h.created);}
   if(p.type==='delete')return id(p.id);
-  if(p.type==='check')return id(p.id)&&date(p.day)&&typeof p.done==='boolean';
+  if(p.type==='goal')return id(p.id)&&date(p.effective)&&typeof p.goal==='string'&&p.goal.trim().length>0&&p.goal.length<=80;
+  if(p.type==='check')return id(p.id)&&date(p.day)&&typeof p.done==='boolean'&&(p.goal===undefined||(typeof p.goal==='string'&&p.goal.length<=80));
   return false;
 }

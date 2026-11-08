@@ -4,3 +4,12 @@ test('today remains open; a missed yesterday breaks the streak',()=>{assert.deep
 test('undoing a check-in splits a streak; future entries do not count',()=>{assert.deepEqual(stats({days:{'2026-11-04':true,'2026-11-05':true,'2026-11-06':false,'2026-11-07':true,'2026-11-08':true,'2026-11-09':true}},'2026-11-08'),{current:2,longest:2,total:4})});
 test('events replay changes and deletions in order',()=>{const p=payload=>({payload});const h={id:'a',name:'Read',goal:'10 pages',emoji:'📖',created:'2026-11-01'};const ev=[p({type:'habit',habit:h}),p({type:'check',id:'a',day:'2026-11-08',done:true}),p({type:'check',id:'a',day:'2026-11-08',done:false})];assert.equal(replay(ev)[0].days['2026-11-08'],false);assert.deepEqual(replay([...ev,p({type:'delete',id:'a'})]),[])});
 test('backup validation rejects invalid dates and malformed records',()=>{assert.equal(validPayload({type:'check',id:'a',day:'2026-02-30',done:true}),false);assert.equal(validPayload({type:'check',id:'a',day:'2026-11-08',done:true}),true);assert.equal(validPayload({type:'habit',habit:{id:'a',name:'',goal:'',emoji:'🌱',created:'2026-11-08'}}),false);assert.equal(validPayload(null),false)});
+test('goal changes preserve legacy and new check-in descriptions',()=>{
+ const payloads=[{type:'habit',habit:{id:'a',name:'Read',goal:'10 pages',emoji:'📖',created:'2026-01-01'}},{type:'check',id:'a',day:'2026-01-02',done:true},{type:'goal',id:'a',goal:'20 pages',effective:'2026-01-03'},{type:'check',id:'a',day:'2026-01-03',done:true,goal:'20 pages'},{type:'goal',id:'a',goal:'30 pages',effective:'2026-01-03'}];
+ const h=replay(payloads.map(payload=>({payload})))[0];assert.equal(h.goal,'30 pages');assert.equal(h.results['2026-01-02'].goal,'10 pages');assert.equal(h.results['2026-01-03'].goal,'20 pages');assert.equal(h.goalHistory.length,3);assert.equal(h.days['2026-01-03'],true);
+ assert.equal(validPayload({type:'goal',id:'a',goal:'20 pages',effective:'2026-01-03'}),true);assert.equal(validPayload({type:'goal',id:'a',goal:' ',effective:'2026-01-03'}),false);
+});
+test('backdated check-ins use the goal effective on that date',()=>{
+ const payloads=[{type:'habit',habit:{id:'a',name:'Read',goal:'10 pages',emoji:'📖',created:'2026-01-01'}},{type:'goal',id:'a',goal:'20 pages',effective:'2026-02-01'},{type:'check',id:'a',day:'2026-01-15',done:true}];
+ const h=replay(payloads.map(payload=>({payload})))[0];assert.equal(h.results['2026-01-15'].goal,'10 pages');assert.equal(h.goal,'20 pages');
+});

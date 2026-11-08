@@ -33,3 +33,7 @@ In GitHub repository **Settings → Pages → Build and deployment**, choose **G
 ## Backups
 
 **Export backup** downloads your habits and check-ins as JSON. **Import backup** merges a valid export as new events; it can change existing records to the backup's values. Export current progress first if needed. Backups include personal history, so keep them private.
+
+## Changing goals
+
+Open a habit and choose **Edit daily goal**. Changes start today and appear in **Goal history** with their effective dates. Completed check-ins keep a snapshot of the description used when they were recorded, even if you change the goal later that same day. Select a calendar day to view its saved goal, or to record/undo that day's result. Backdated entries use the goal effective on that date. Existing habits and backups remain compatible; no database changes are needed.
